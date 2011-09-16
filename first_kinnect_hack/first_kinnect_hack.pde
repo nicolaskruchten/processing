@@ -5,18 +5,20 @@ import netP5.*;
 OscP5 oscP5;
 
 // Creating an array of objects.
-Mover movers;
+ArrayList<Mover> movers;
 Hashtable<Integer, PVector> attractors = new Hashtable<Integer, PVector>();
-
+Lure lure;
 
 void setup() {
   oscP5 = new OscP5(this, "127.0.0.1", 7110);
 
-  size(screen.width/2,screen.height/2);
-  smooth();
+  size(screen.width,screen.height);
+  //smooth();
   background(255);
   // Initializing all the elements of the array
-  movers = new Mover(); 
+  movers = new ArrayList<Mover>();
+  for(int i = 0; i< 10; i++) movers.add(new Mover()); 
+  lure = new Lure();
 }
 
 /* incoming osc message are forwarded to the oscEvent method. */
@@ -61,61 +63,117 @@ void oscEvent(OscMessage msg) {
 
 void draw() {
   noStroke();
-  fill(255,10);
+  fill(0,10);
   rect(0,0,width,height);
 
-  
-    movers.update();
-    movers.checkEdges();
-    movers.display(); 
+  lure.update();
+
+  for(Mover m: movers)
+  {
+    m.update();
+    m.checkEdges();
+    m.display(); 
+  }
     
     for(PVector pv: attractors.values())
     {
-          stroke(0);
-          fill(255,0,0);
-          ellipse(pv.x,pv.y,5,5);
+      //fill(255,0,0);
+      //ellipse(pv.x,pv.y,5,5);
     }  
+}
+
+class Lure {
+ PVector location;
+ PVector velocity;
+ float topspeed;
+ boolean burst;
+ 
+ Lure() {
+    location = new PVector(random(width),random(height));
+    velocity = new PVector(random(5),random(5));
+    topspeed = 10;
+    burst = true;
+ }
+ 
+ void update() {
+   
+    boolean first = true;
+    PVector focus = new PVector(width/2,height/2);
+    for(PVector pv: attractors.values())
+    {
+        PVector dirTo = PVector.sub(pv, focus);
+        dirTo.div(2);
+        focus.add(dirTo);
+    }
+    
+    
+    if(true)
+    {
+      location.x=focus.x;
+      location.y=focus.y;
+      burst = 100 > focus.dist(new PVector(width/2,height/2));
+    }
+    else
+    {
+    PVector dir = PVector.sub(focus,location);  // Find vector pointing towards mouse
+    dir.normalize();     // Normalize
+    
+    float xTemp = dir.x;
+    float a = dir.heading2D();
+    dir.x = cos(a);
+    dir.y = sin(a);
+    dir.mult(random(1));
+    
+
+    // Motion 101!  Velocity changes by acceleration.  Location changes by velocity.
+    velocity.add(dir);
+    velocity.limit(topspeed);
+    location.add(velocity);
+    }
+    
+      //fill(0,0,255);
+      //ellipse(location.x,location.y,5,5);
+    
+ }
 }
 
 class Mover {
 
   PVector location;
   PVector velocity;
-  PVector acceleration;
   float topspeed;
+  PVector burstLure;
 
   Mover() {
     location = new PVector(random(width),random(height));
     velocity = new PVector(0,0);
-    topspeed = 4;
+    topspeed = 6;
+    burstLure = new PVector(random(width),random(height));
   }
 
   void update() {
 
     // Our algorithm for calculating acceleration:
     
-    PVector mouse = new PVector(width/2,height/2);
-    for(PVector pv: attractors.values())
-    {
-      PVector dirTo = PVector.sub(mouse, pv);
-      dirTo.div(2);
-      mouse.add(dirTo);
-    }
-    PVector dir = PVector.sub(mouse,location);  // Find vector pointing towards mouse
-    dir.normalize();     // Normalize
-    dir.mult(0.5);       // Scale 
-    acceleration = dir;  // Set to acceleration
-
-    // Motion 101!  Velocity changes by acceleration.  Location changes by velocity.
-    velocity.add(acceleration);
+    PVector dir = lure.burst ? PVector.sub(burstLure, location) : PVector.sub(lure.location,location);
+    dir.normalize();
+    float xTemp = dir.x;
+    float a = random(0.2)+dir.heading2D();
+    dir.x = cos(a);
+    dir.y = sin(a);
+    dir.mult(random(1));
+    
+    velocity.add(dir);
     velocity.limit(topspeed);
     location.add(velocity);
   }
 
   void display() {
-    stroke(0);
-    fill(175);
+    noStroke();
+    fill(255, 255, 0, 90);
     ellipse(location.x,location.y,16,16);
+    fill(255, 255, 0);
+    ellipse(location.x,location.y,8,8);
   }
 
   void checkEdges() {
